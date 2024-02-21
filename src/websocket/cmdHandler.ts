@@ -1,7 +1,6 @@
 import GameManager from "../db/gameManager";
-import { Registration } from "./cmds";
 import { CommandTypes, Message } from "./wsTypes";
-import eventEmitter from './events';
+import eventEmitter, { GAME } from './events';
 
 export const cmdHandler = (message: Message, connectionId: number): any => {
     const cmd = message.type;
@@ -62,43 +61,54 @@ export const cmdHandler = (message: Message, connectionId: number): any => {
 
             response.data = JSON.stringify(res);
             return JSON.stringify(response);
-
-
-
         }
         case CommandTypes.CreateRoom: {
             const roomIndex = GameManager.createRoom(connectionId);
-            eventEmitter.emit('updateRooms')
+            eventEmitter.emit(GAME.UPDATE_ROOMS)
             break;
         }
         case CommandTypes.AddUserToRoom: {
-            GameManager.addUserToRoom(data.indexRoom, connectionId);
-            const userIndeces = GameManager.getUsersInRoom(data.indexRoom);
-            eventEmitter.emit('updateRooms')
+            const room = GameManager.addUserToRoom(data.indexRoom, connectionId);
+
+            eventEmitter.emit(GAME.UPDATE_ROOMS);
+
+            if (!room?.isAvailable) {
+                eventEmitter.emit(GAME.CREATE_GAME, room?.user1?.id, room?.user2?.id);
+            }
             break;
         }
-        // case CommandTypes.StartGame: {
-        //     let {user1, user2} = data;
-        //     user1 = GameManager.getUserByIndex(user1);
-        //     user2 = GameManager.getUserByIndex(user2);
+        case CommandTypes.CreateGame: {
+            const game = GameManager.createGame(connectionId as number);
 
-        //     response.data = {
-        //         name: user.name,
-        //         index: user.index,
-        //         error: false,
-        //         errorText: ''
-        //     }
-        //     // sender();
-        //     ws.send(dataToJSON(response))
+            response.data = JSON.stringify({
+                idGame: game.id,
+                idPlayer: connectionId
+            });
+            return JSON.stringify(response);
 
+            break;
+        }
+        case CommandTypes.AddShips: {
+            const readyUsers: number[] = GameManager.addShips(data, connectionId);
+            console.log(readyUsers);
 
-        //     break;
-        // }
+            if (readyUsers.length === 2) {
+                eventEmitter.emit(GAME.START_GAME, ...readyUsers);
+            }
+            return JSON.stringify(response);
+        }
+        case CommandTypes.StartGame: {
+            const usersShips = GameManager.getUsersShips(connectionId);
+            console.log(usersShips);
+
+            response.data = JSON.stringify({
+                ships: usersShips,
+                indexPlayer: connectionId
+            });
+
+            return JSON.stringify(response);
+        }
     }
-
-
-    // return responses;
-
 }
 
 const dataToJSON = (data: any): string => {

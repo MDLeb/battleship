@@ -3,7 +3,7 @@ import { cmdHandler } from './cmdHandler';
 import { CommandTypes, Message } from './wsTypes';
 import { User } from 'db/dbTypes';
 import GameManager from "../db/gameManager";
-import eventEmitter from './events';
+import eventEmitter, { GAME } from './events';
 
 
 export const newWSConnection = () => {
@@ -31,17 +31,24 @@ export const newWSConnection = () => {
             }
         });
 
-        eventEmitter.on('updateRooms', () => {
-            ws.clients.forEach(function each(client) {
-                client.send(cmdHandler({ type: CommandTypes.UpdateRoom, data: '' } as Message, connectionId as number));
-            });
+        eventEmitter.on(GAME.UPDATE_ROOMS, () => {
+            w.send(cmdHandler({ type: CommandTypes.UpdateRoom, data: '' } as Message, connectionId as number));
         });
 
-        eventEmitter.on('updateWinners', () => {
-            ws.clients.forEach(function each(client) {
-                client.send(cmdHandler({ type: CommandTypes.UpdateWinners, data: '' } as Message, connectionId as number));
-            });
+        eventEmitter.on(GAME.UPDATE_WINNERS, () => {
+            w.send(cmdHandler({ type: CommandTypes.UpdateWinners, data: '' } as Message, connectionId as number));
         });
+        eventEmitter.on(GAME.CREATE_GAME, (id1, id2) => {
+            if (connectionId === id1 || connectionId === id2) {
+                w.send(cmdHandler({ type: CommandTypes.CreateGame, data: '' } as Message, connectionId as number));
+            }
+        });
+        eventEmitter.on(GAME.START_GAME, (id1, id2) => {
+            if (connectionId === id1 || connectionId === id2) {
+                w.send(cmdHandler({ type: CommandTypes.StartGame, data: '' } as Message, connectionId as number));
+            }
+        });
+
 
         w.send(JSON.stringify({ "type": "ws open" }));
     });
