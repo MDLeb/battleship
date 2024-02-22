@@ -116,8 +116,9 @@ export const cmdHandler = (message: Message, connectionId: number): any => {
         case CommandTypes.Attack: {
             const res = GameManager.attack(data.gameId, data.indexPlayer, data.x, data.y);
             const game = GameManager.getGame(data.gameId);
+            if (game?.turn !== data.indexPlayer) return;
+
             const usersId = game?.getUsersID() as number[];
-            const secondPlayer = data.indexPlayer === usersId[0] ? usersId[1] : usersId[0];
 
             response.data = JSON.stringify({
                 position: { x: data.x, y: data.y },
@@ -126,10 +127,25 @@ export const cmdHandler = (message: Message, connectionId: number): any => {
             });
 
             if (res[0] === Attacks[3]) return;
+           
             eventEmitter.emit(GAME.ATTACK, ...usersId, JSON.stringify(response));
-            // eventEmitter.emit(GAME.SWITCH_TURN, res[1], res[2], data.gameId);
+            if (res[0] === Attacks[0]) {
+                game?.switchTurn();
+                eventEmitter.emit(GAME.SWITCH_TURN, ...usersId, data.gameId);
+                return;
+            };
+            if (res[1]) {
+                res[1].forEach((pos: any) => {
+                    console.log(pos);
 
-            return JSON.stringify(response);
+                    response.data = JSON.stringify({
+                        position: { x: pos.y, y: pos.x },
+                        currentPlayer: data.indexPlayer,
+                        status: Attacks[2],
+                    });
+                    eventEmitter.emit(GAME.UPDATE_KILLED, ...usersId, JSON.stringify(response));
+                })
+            }
         }
     }
 }

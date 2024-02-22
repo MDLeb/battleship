@@ -24,6 +24,13 @@ export class Game implements IGame {
         this.turn = user2ID;
     }
 
+    public switchTurn() {
+        if (this.turn === this.user2ID) {
+            this.turn = this.user1ID
+        } else {
+            this.turn = this.user2ID
+        };
+    }
     public addShips(connectionId: number, ships: ShipData) {
         if (connectionId === this.user1ID) {
             this.user1Field = new Field(ships)
@@ -49,13 +56,26 @@ export class Game implements IGame {
     public getTurn(): number {
         return this.turn;
     }
-    public attack(connectionId: number, x: number, y: number) {
+    public attack(connectionId: number, x: number, y: number): any[] {
         if (connectionId === this.user1ID && this.user2Field) {
-            return this.user2Field?.checkAttack(x, y);
+            const checkRes = this.user2Field?.checkAttack(x, y);
+            const toUpdate = JSON.parse(JSON.stringify(this.user2Field.needUpdateKilled));
+            if (toUpdate) {
+                this.user2Field.needUpdateKilled = null
+                return [checkRes, toUpdate];
+            }
+            return [checkRes];
         }
         if (connectionId === this.user2ID && this.user1Field) {
-            return this.user1Field?.checkAttack(x, y);
+            const checkRes = this.user1Field?.checkAttack(x, y);
+            const toUpdate = JSON.parse(JSON.stringify(this.user1Field.needUpdateKilled));
+            if (toUpdate) {
+                this.user1Field.needUpdateKilled = null
+                return [checkRes, toUpdate];
+            }
+            return [checkRes]
         }
+        return []
     }
     public getUsersID() {
         return [this.user1ID, this.user2ID];
@@ -79,6 +99,7 @@ export class Field {
     ];
 
     private initialData: ShipData;
+    public needUpdateKilled: any[] | null = null;
 
     constructor(ships: ShipData) {
         this.initialData = ships;
@@ -101,26 +122,36 @@ export class Field {
     }
     private checkIsKilled(l: number, x: number, y: number) {
         let isKilled = l - 1;
+        const needToUpdate = [];
         for (let i = x, j = x; i < x + l && j >= x - l + 1; i++, j--) {
-            if (this.ships[y] && this.ships[y][i] && this.ships[y][i] === (l * -1)) isKilled -= 1;
-            if (this.ships[y] && this.ships[y][j] && this.ships[y][j] === (l * -1)) isKilled -= 1;
+            if (this.ships[y] && this.ships[y][i] && this.ships[y][i] === (l * -1)) {
+                isKilled -= 1;
+                needToUpdate.push({ 'x': y, 'y': i })
+            };
+            if (this.ships[y] && this.ships[y][j] && this.ships[y][j] === (l * -1)) {
+                isKilled -= 1;
+                needToUpdate.push({ 'x': y, 'y': j })
+            };
         }
         if (isKilled !== 0) {
             for (let i = y, j = y; i < y + l && j >= y - l + 1; i++, j--) {
-                if (this.ships[i] && this.ships[i][x] && this.ships[i][x] === (l * -1)) isKilled -= 1
-                if (this.ships[j] && this.ships[j][x] && this.ships[j][x] === (l * -1)) isKilled -= 1;
+                if (this.ships[i] && this.ships[i][x] && this.ships[i][x] === (l * -1)) {
+                    isKilled -= 1;
+                    needToUpdate.push({ 'x': i, 'y': x })
+                }
+                if (this.ships[j] && this.ships[j][x] && this.ships[j][x] === (l * -1)) {
+                    isKilled -= 1;
+                    needToUpdate.push({ 'x': j, 'y': x })
+                };
             }
         }
 
-        console.log(isKilled);
-
-        return isKilled === 0;
+        return { value: isKilled === 0, needToUpdate };
     }
     public getInitialData(): ShipData {
         return this.initialData
     }
     public checkAttack(x: number, y: number): string {
-        console.table(this.ships)
         const ceil = this.ships[y][x];
         if (ceil < 0) {
             return Attacks[3]
@@ -129,8 +160,10 @@ export class Field {
             this.ships[y][x] = -5;
             return Attacks[0]
         }
-        if (ceil > 0 && ceil < 5 && this.checkIsKilled(ceil, x, y)) {
+        const isKilled = this.checkIsKilled(ceil, x, y);
+        if (ceil > 0 && ceil < 5 && isKilled.value) {
             this.ships[y][x] = ceil * -1;
+            this.needUpdateKilled = isKilled.needToUpdate;
             return Attacks[2]
         };
         if (ceil > 0 && ceil < 5 && this.checkNearCeils(ceil, x, y)) {

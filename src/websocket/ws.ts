@@ -59,6 +59,11 @@ export const newWSConnection = () => {
                 w.send(responseString);
             }
         });
+        eventEmitter.on(GAME.UPDATE_KILLED, (id1, id2, responseString) => {
+            if (connectionId === id1 || connectionId === id2) {
+                w.send(responseString);
+            }
+        });
 
         w.send(JSON.stringify({ "type": "ws open" }));
     });

@@ -105,8 +105,7 @@ class GameManager {
     public attack(gameId: number, connectionId: number, x: number, y: number): any[] {
         const game = this.Games.get(gameId) as Game;
         const attackRes = game.attack(connectionId, x, y);
-
-        return [attackRes, ...game.getUsersID()];
+        return [...attackRes];
     }
     public getGameTurn(gameId: number): number | null {
         const game = this.Games.get(gameId) as Game;

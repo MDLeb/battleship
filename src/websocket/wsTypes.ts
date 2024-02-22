@@ -11,6 +11,7 @@ export enum CommandTypes {
     AddShips = 'add_ships',
     StartGame = 'start_game',
     Attack = 'attack',
+    UpdateKilled = 'update_killed',
     RandomAttack = 'randomAttack',
     Turn = 'turn',
     Finish = 'finish'
