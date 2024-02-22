@@ -10,6 +10,8 @@ export type User = {
 }
 export type Game = {
     id: number,
+    user1: User | null,
+    user2: User | null,
     user1Field?: Field | null,
     user2Field?: Field | null,
     turn: User
@@ -30,5 +32,9 @@ export enum Ships {
     "large" = 3,
     "huge" = 4
 }
-
+export enum Attacks {
+    "miss" = 0,
+    "shot" = 1,
+    "killed" = 2,
+}
 export type ShipData = { position: { x: number, y: number }, direction: boolean, length: number, type: "small" | "medium" | "large" | "huge" }[]

@@ -1,10 +1,11 @@
-import { Game, Room, ShipData, Ships, User } from "./dbTypes";
+import { Attacks, Game, Room, ShipData, Ships, User } from "./dbTypes";
 
-let gameId = 0;
+// let gameId = 0;
 
 class GameManager {
     private Users: User[] = [];
     private Rooms: Room[] = [];
+    private Games: Game[] = [];
 
     private connections = new Map<number, User | any>();
 
@@ -75,10 +76,27 @@ class GameManager {
 
         return room;
     }
-    public getUsersInRoom(indexRoom: number): any[] {
-        if (!this.Rooms[indexRoom]) { return [] };
-        const room: Room = this.Rooms[indexRoom];
-        return [room.user1?.index, room.user2?.index];
+    // public getUsersInRoom(indexRoom: number): any[] {
+    //     if (!this.Rooms[indexRoom]) { return [] };
+    //     const room: Room = this.Rooms[indexRoom];
+    //     return [room.user1?.index, room.user2?.index];
+    // }
+    // public getUsersInRoom(indexRoom: number): any[] {
+    //     if (!this.Rooms[indexRoom]) { return [] };
+    //     const room: Room = this.Rooms[indexRoom];
+    //     const id1 = this.getConnectionIdForUser(room.user1 as User);
+    //     const id2 = this.getConnectionIdForUser(room.user2 as User);
+
+    //     return [id1, id2];
+    // }
+    public getGameTurn(connectionId1: number, connectionId2: number): number | null {
+        const user1 = this.connections.get(connectionId1);
+        const user2 = this.connections.get(connectionId2);
+        const game = this.Rooms[user1.room].game;
+        const turn = game?.turn;
+        if (user1 === turn) return connectionId1;
+        if (user2 === turn) return connectionId2;
+        return null;
     }
     public getUserByIndex(index: number): User | null {
         return this.Users[index] ?? null;
@@ -91,11 +109,14 @@ class GameManager {
         const room = this.Rooms[user.room];
 
         room.game = {
-            id: gameId++,
+            id: this.Games.length,
+            user1: room.user1,
+            user2: room.user1,
             user1Field: null,
             user2Field: null,
             turn: room.user1 as User
         };
+        this.Games.push(room.game)
         return room.game;
     }
     public addShips(data: any, connectionId: number): number[] {
@@ -141,6 +162,22 @@ class GameManager {
         return ships;
 
     }
+    public attack(gameId: number, connectionId: number, x: number, y: number): any[] {
+        const game = this.Games[gameId];
+        const userActive = game.turn;
+        if (userActive !== this.connections.get(connectionId)) {
+            console.log('YOUR FUCKING LOGIC IS WRONG');
+
+        }
+        const fieldUnderAttack: Field = userActive === game.user1 ? game.user2Field as Field : game.user1Field as Field;
+        const attackResult: Attacks = fieldUnderAttack.checkAttack(x, y);
+
+        if(attackResult !== Attacks.killed && attackResult !== Attacks.shot){
+            game.turn = game.turn === game.user1 ? game.user2 as User : game.user1 as User;
+        }
+
+        return [attackResult, this.getConnectionIdForUser(game.user1 as User), this.getConnectionIdForUser(game.user2 as User)];
+    }
 }
 
 export default new GameManager();
@@ -172,12 +209,24 @@ export class Field {
         });
     }
 
+    private checkNearCeils(l: number, x: number, y: number) {
+        for (let i = x, j = x; i < x + l - 1 && j > x - l + 1; j--) {
+            if ((this.ships[y][i] && this.ships[y][i] === l) || (this.ships[y][j] && this.ships[y][j] === l)) return true;
+        }
+        for (let i = y, j = y; i < y + l - 1 && j > y - l + 1; j--) {
+            if ((this.ships[i][x] && this.ships[i][x] === l) || (this.ships[j][x] && this.ships[j][x] === l)) return true;
+        }
+        return false;
+    }
     public getInitialData(): ShipData {
         return this.initialData
     }
-    public checkAttack(position: { x: number, y: number }) {
-        console.log(this.ships[position.y][position.x]);
+    public checkAttack(x: number, y: number): Attacks {
+        const ceil = this.ships[y][x];
+        if (ceil === 0) return Attacks.miss;
+        if (ceil > 0 && ceil < 5 && this.checkNearCeils(ceil, x, y)) return Attacks.shot;
+        if (ceil > 0 && ceil < 5 && !this.checkNearCeils(ceil, x, y)) return Attacks.killed;
 
-        return this.ships[position.y][position.x]
+        return this.ships[y][x]
     }
 }

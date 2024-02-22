@@ -6,7 +6,7 @@ export enum GAME {
     UPDATE_WINNERS = 'updateWinners',
     CREATE_GAME = 'createGame',
     START_GAME = 'startGame',
-    // UPDATE_WINNERS = 'updateWinners',
+    SWITCH_TURN = 'switchTurn',
     // UPDATE_WINNERS = 'updateWinners',
     // UPDATE_WINNERS = 'updateWinners',
 }

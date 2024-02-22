@@ -1,6 +1,7 @@
 import GameManager from "../db/gameManager";
 import { CommandTypes, Message } from "./wsTypes";
 import eventEmitter, { GAME } from './events';
+import { Attacks } from "db/dbTypes";
 
 export const cmdHandler = (message: Message, connectionId: number): any => {
     const cmd = message.type;
@@ -14,7 +15,7 @@ export const cmdHandler = (message: Message, connectionId: number): any => {
         id: 0
     };
     const responses: any[] = [];
-    console.log(message.type);
+    // console.log(message.type);
 
     switch (message.type) {
         case CommandTypes.Registration: {
@@ -85,12 +86,10 @@ export const cmdHandler = (message: Message, connectionId: number): any => {
                 idPlayer: connectionId
             });
             return JSON.stringify(response);
-
-            break;
         }
         case CommandTypes.AddShips: {
             const readyUsers: number[] = GameManager.addShips(data, connectionId);
-            console.log(readyUsers);
+            // console.log(readyUsers);
 
             if (readyUsers.length === 2) {
                 eventEmitter.emit(GAME.START_GAME, ...readyUsers);
@@ -99,13 +98,32 @@ export const cmdHandler = (message: Message, connectionId: number): any => {
         }
         case CommandTypes.StartGame: {
             const usersShips = GameManager.getUsersShips(connectionId);
-            console.log(usersShips);
+            // console.log(usersShips);
 
             response.data = JSON.stringify({
                 ships: usersShips,
                 indexPlayer: connectionId
             });
 
+            return JSON.stringify(response);
+        }
+        case CommandTypes.Turn: {
+            const turn = GameManager.getGameTurn(data.id1, data.id2);
+
+            response.data = JSON.stringify({
+                currentPlayer: turn,
+            });
+
+            return JSON.stringify(response);
+        }
+        case CommandTypes.Attack: {
+            const res = GameManager.attack(data.gameId, data.indexPlayer, data.x, data.y);
+            response.data = {
+                position: { x: data.x, y: data.y },
+                currentPlayer: data.indexPlayer,
+                status: res[0],
+            }
+            // eventEmitter.emit(GAME.SWITCH_TURN, res[1], res[2]);
             return JSON.stringify(response);
         }
     }
