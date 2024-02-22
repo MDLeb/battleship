@@ -38,24 +38,27 @@ export const newWSConnection = () => {
         eventEmitter.on(GAME.UPDATE_WINNERS, () => {
             w.send(cmdHandler({ type: CommandTypes.UpdateWinners, data: '' } as Message, connectionId as number));
         });
-        eventEmitter.on(GAME.CREATE_GAME, (id1, id2) => {
+        eventEmitter.on(GAME.CREATE_GAME, (id1, id2, roomId) => {
             if (connectionId === id1 || connectionId === id2) {
-                w.send(cmdHandler({ type: CommandTypes.CreateGame, data: '' } as Message, connectionId as number));
+                w.send(cmdHandler({ type: CommandTypes.CreateGame, data: JSON.stringify({ "roomId": roomId }) as any } as Message, connectionId as number));
             }
         });
-        eventEmitter.on(GAME.START_GAME, (id1, id2) => {
+        eventEmitter.on(GAME.START_GAME, (id1, id2, gameId) => {
             if (connectionId === id1 || connectionId === id2) {
                 w.send(cmdHandler({ type: CommandTypes.StartGame, data: '' } as Message, connectionId as number));
-                w.send(cmdHandler({ type: CommandTypes.Turn, data: JSON.stringify({ "id1": id1, "id2": id2 }) as any } as Message, connectionId as number));
+                w.send(cmdHandler({ type: CommandTypes.Turn, data: JSON.stringify({ "gameId": gameId }) as any } as Message, connectionId as number));
             }
         });
-
-        eventEmitter.on(GAME.SWITCH_TURN, (id1, id2) => {
+        eventEmitter.on(GAME.SWITCH_TURN, (id1, id2, gameId) => {
             if (connectionId === id1 || connectionId === id2) {
-                w.send(cmdHandler({ type: CommandTypes.Turn, data: JSON.stringify({ "id1": id1, "id2": id2 }) as any } as Message, connectionId as number));
+                w.send(cmdHandler({ type: CommandTypes.Turn, data: JSON.stringify({ "gameId": gameId }) as any } as Message, connectionId as number));
             }
         });
-
+        eventEmitter.on(GAME.ATTACK, (id1, id2, responseString) => {
+            if (connectionId === id1 || connectionId === id2) {
+                w.send(responseString);
+            }
+        });
 
         w.send(JSON.stringify({ "type": "ws open" }));
     });

@@ -1,0 +1,147 @@
+import { Attacks, ShipData, Ships, User } from "./dbTypes";
+
+interface IGame {
+    id: number,
+    user1ID: number,
+    user2ID: number,
+    user1Field?: Field | null,
+    user2Field?: Field | null,
+    turn: number
+}
+
+export class Game implements IGame {
+    id: number;
+    user1ID: number;
+    user2ID: number;
+    user1Field?: Field | null;
+    user2Field?: Field | null;
+    turn: number;
+
+    constructor(user1ID: number, user2ID: number) {
+        this.id = Math.floor(Math.random() * 1000);
+        this.user1ID = user1ID;
+        this.user2ID = user2ID;
+        this.turn = user2ID;
+    }
+
+    public addShips(connectionId: number, ships: ShipData) {
+        if (connectionId === this.user1ID) {
+            this.user1Field = new Field(ships)
+        }
+        if (connectionId === this.user2ID) {
+            this.user2Field = new Field(ships)
+        }
+        const readyUsers = [];
+        if (this.user1Field) { readyUsers.push(this.user1ID) };
+        if (this.user2Field) { readyUsers.push(this.user2ID) };
+
+        return readyUsers;
+    }
+    public getUsersShips(connectionId: number): ShipData | null {
+        if (connectionId === this.user1ID && this.user1Field) {
+            return this.user1Field?.getInitialData() as ShipData;
+        }
+        if (connectionId === this.user2ID && this.user2Field) {
+            return this.user2Field?.getInitialData() as ShipData;
+        }
+        return null;
+    }
+    public getTurn(): number {
+        return this.turn;
+    }
+    public attack(connectionId: number, x: number, y: number) {
+        if (connectionId === this.user1ID && this.user2Field) {
+            return this.user2Field?.checkAttack(x, y);
+        }
+        if (connectionId === this.user2ID && this.user1Field) {
+            return this.user1Field?.checkAttack(x, y);
+        }
+    }
+    public getUsersID() {
+        return [this.user1ID, this.user2ID];
+    }
+
+}
+
+export class Field {
+
+    private ships: number[][] = [
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    ];
+
+    private initialData: ShipData;
+
+    constructor(ships: ShipData) {
+        this.initialData = ships;
+        ships.forEach(s => {
+            for (let i = 0; i < s.length; i++) {
+                //ПЕРВЫМ ИДЕТ X , но это столбец, поэтому он как бы Y
+                this.ships[s.position.y + (s.direction ? i : 0)][s.position.x + (!s.direction ? i : 0)] = Ships[s.type];
+            }
+        });
+    }
+
+    private checkNearCeils(l: number, x: number, y: number) {
+        for (let i = x, j = x; i < x + l - 1 && j > x - l + 1; i++, j--) {
+            if ((this.ships[y][i] && this.ships[y][i] === l) || (this.ships[y][j] && this.ships[y][j] === l)) return true;
+        }
+        for (let i = y, j = y; i < y + l - 1 && j > y - l + 1; i++, j--) {
+            if ((this.ships[i][x] && this.ships[i][x] === l) || (this.ships[j][x] && this.ships[j][x] === l)) return true;
+        }
+        return false;
+    }
+    private checkIsKilled(l: number, x: number, y: number) {
+        let isKilled = l - 1;
+        for (let i = x, j = x; i < x + l && j >= x - l + 1; i++, j--) {
+            if (this.ships[y] && this.ships[y][i] && this.ships[y][i] === (l * -1)) isKilled -= 1;
+            if (this.ships[y] && this.ships[y][j] && this.ships[y][j] === (l * -1)) isKilled -= 1;
+        }
+        if (isKilled !== 0) {
+            for (let i = y, j = y; i < y + l && j >= y - l + 1; i++, j--) {
+                if (this.ships[i] && this.ships[i][x] && this.ships[i][x] === (l * -1)) isKilled -= 1
+                if (this.ships[j] && this.ships[j][x] && this.ships[j][x] === (l * -1)) isKilled -= 1;
+            }
+        }
+
+        console.log(isKilled);
+
+        return isKilled === 0;
+    }
+    public getInitialData(): ShipData {
+        return this.initialData
+    }
+    public checkAttack(x: number, y: number): string {
+        console.table(this.ships)
+        const ceil = this.ships[y][x];
+        if (ceil < 0) {
+            return Attacks[3]
+        }
+        if (ceil === 0) {
+            this.ships[y][x] = -5;
+            return Attacks[0]
+        }
+        if (ceil > 0 && ceil < 5 && this.checkIsKilled(ceil, x, y)) {
+            this.ships[y][x] = ceil * -1;
+            return Attacks[2]
+        };
+        if (ceil > 0 && ceil < 5 && this.checkNearCeils(ceil, x, y)) {
+            this.ships[y][x] = ceil * -1;
+            return Attacks[1]
+        };
+        if (ceil > 0 && ceil < 5 && !this.checkNearCeils(ceil, x, y)) {
+            this.ships[y][x] = ceil * -1;
+            return Attacks[2]
+        };
+
+        return Attacks[0]
+    }
+}

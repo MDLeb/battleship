@@ -1,22 +1,16 @@
-import { Attacks, Game, Room, ShipData, Ships, User } from "./dbTypes";
+import { Game, Field } from "./Game";
+import { Room } from "./Room";
 
-// let gameId = 0;
+import { Attacks, ShipData, Ships, User } from "./dbTypes";
 
 class GameManager {
     private Users: User[] = [];
-    private Rooms: Room[] = [];
-    private Games: Game[] = [];
+    private Rooms = new Map<number, Room>();
+    private Games = new Map<number, Game>();
 
     private connections = new Map<number, User | any>();
 
-    private getConnectionIdForUser(user: User): number | null {
-        for (let [key, value] of this.connections) {
-            if (value === user) return key;
-        }
-        return null;
-    }
-
-    public getId = () => {
+    public getId() {
         let id = Math.floor(Math.random() * 1000000);
         if (this.connections.get(id)) {
             this.getId()
@@ -25,7 +19,10 @@ class GameManager {
             return id;
         }
     };
-
+    public getUserName(connectionId: number): string {
+        const user = this.connections.get(connectionId) as User;
+        return user.name;
+    }
     public addUser(userName: string, password: string, id: number): User {
         const newUser = {
             name: userName,
@@ -39,194 +36,83 @@ class GameManager {
         this.connections.set(id, newUser);
         return newUser;
     }
+    public getRoom(roomId: number): Room | null {
+        return this.Rooms.get(roomId) ?? null;
+    }
+    public getGame(gameId: number): Game | null {
+        return this.Games.get(gameId) ?? null;
+    }
     public updateWinners(): User[] {
 
         return this.Users;
     }
     public createRoom(connectionId: number): number {
         const user = this.connections.get(connectionId) as User;
+        //FIXME если у юзера уже создана комната надо ничего не делать
         if (user.room > -1) {
             return -1;
         }
-        const room: Room = {
-            indexRoom: this.Rooms.length as number,
-            user1: user as User,
-            user2: null,
-            isAvailable: true,
-            game: null
-        };
-        user.room = room.indexRoom;
-        this.Rooms.push(room);
+        const room = new Room(connectionId);
+        user.room = room.roomID;
+        this.Rooms.set(room.roomID, room);
 
-        console.log('create', room);
-        return room.indexRoom;
+        return room.roomID;
     }
     public addUserToRoom(indexRoom: number, connectionId: number): Room | null {
-        if (!this.Rooms[indexRoom]) { return null; }
+        if (!this.Rooms.get(indexRoom)) { return null; }
 
         const user = this.connections.get(connectionId);
-        const room: Room = this.Rooms[indexRoom];
-
-        if (room.user1 === user) return room;
-        room.user2 = user as User;
-
+        const room = this.Rooms.get(indexRoom);
+        room?.addUser(connectionId);
         user.room = indexRoom;
-
-        room.isAvailable = room.user1 === null || room.user2 === null;
-
-        return room;
-    }
-    // public getUsersInRoom(indexRoom: number): any[] {
-    //     if (!this.Rooms[indexRoom]) { return [] };
-    //     const room: Room = this.Rooms[indexRoom];
-    //     return [room.user1?.index, room.user2?.index];
-    // }
-    // public getUsersInRoom(indexRoom: number): any[] {
-    //     if (!this.Rooms[indexRoom]) { return [] };
-    //     const room: Room = this.Rooms[indexRoom];
-    //     const id1 = this.getConnectionIdForUser(room.user1 as User);
-    //     const id2 = this.getConnectionIdForUser(room.user2 as User);
-
-    //     return [id1, id2];
-    // }
-    public getGameTurn(connectionId1: number, connectionId2: number): number | null {
-        const user1 = this.connections.get(connectionId1);
-        const user2 = this.connections.get(connectionId2);
-        const game = this.Rooms[user1.room].game;
-        const turn = game?.turn;
-        if (user1 === turn) return connectionId1;
-        if (user2 === turn) return connectionId2;
-        return null;
-    }
-    public getUserByIndex(index: number): User | null {
-        return this.Users[index] ?? null;
+        return room ?? null;
     }
     public getAvailableRooms(): Room[] {
-        return this.Rooms.filter(i => i.isAvailable);
+        const rooms: any = [];
+        for (let [key, value] of this.Rooms) {
+            if (value.isAvailable) {
+                rooms.push(value)
+            }
+        }
+        return rooms;
     }
-    public createGame(connectionId: number): Game {
-        const user = this.connections.get(connectionId);
-        const room = this.Rooms[user.room];
+    public createGame(roomId: number): number {
+        const room = this.Rooms.get(roomId) as Room;
 
-        room.game = {
-            id: this.Games.length,
-            user1: room.user1,
-            user2: room.user1,
-            user1Field: null,
-            user2Field: null,
-            turn: room.user1 as User
+        if (room.game) {
+            return room.game.id
+        } else {
+            const gameId = room.createGame();
+            if (room.game) this.Games.set(gameId, room.game as Game);
+            return gameId;
         };
-        this.Games.push(room.game)
-        return room.game;
+
+
     }
-    public addShips(data: any, connectionId: number): number[] {
-        const user = this.connections.get(connectionId);
-        const readyUsers: number[] = [];
-
-        if (!user) return readyUsers;
-        const room = this.Rooms[user.room];
-        const game = room.game;
-        const gameField = new Field(data.ships);
-
-
-        if (user === room.user1) {
-            game && (game.user1Field = gameField);
-            if (game && game.user2Field) {
-                const connectionId2 = this.getConnectionIdForUser(room.user2 as User);
-
-                readyUsers.push(connectionId, connectionId2 as number);
-            }
-        }
-        if (user === room.user2) {
-            game && (game.user2Field = gameField);
-            if (game && game.user1Field) {
-                const connectionId2 = this.getConnectionIdForUser(room.user1 as User);
-
-                readyUsers.push(connectionId, connectionId2 as number);
-            }
-        }
+    public addShips(gameId: number, connectionId: number, ships: ShipData): number[] {
+        const game = this.Games.get(gameId) as Game;
+        const readyUsers = game.addShips(connectionId, ships);
         return readyUsers;
     }
     public getUsersShips(connectionId: number): ShipData | null {
         const user = this.connections.get(connectionId);
-        const room = this.Rooms[user.room];
-        let ships: ShipData | null = null;
-
-        if (room.user1 === user) {
-            ships = room.game?.user1Field?.getInitialData() ?? null;
-        }
-        if (room.user2 === user) {
-            ships = room.game?.user2Field?.getInitialData() ?? null;
-        }
-
+        const room = this.Rooms.get(user.room);
+        const game = room?.game as Game;
+        let ships: ShipData = game.getUsersShips(connectionId) as ShipData;
         return ships;
 
     }
     public attack(gameId: number, connectionId: number, x: number, y: number): any[] {
-        const game = this.Games[gameId];
-        const userActive = game.turn;
-        if (userActive !== this.connections.get(connectionId)) {
-            console.log('YOUR FUCKING LOGIC IS WRONG');
+        const game = this.Games.get(gameId) as Game;
+        const attackRes = game.attack(connectionId, x, y);
 
-        }
-        const fieldUnderAttack: Field = userActive === game.user1 ? game.user2Field as Field : game.user1Field as Field;
-        const attackResult: Attacks = fieldUnderAttack.checkAttack(x, y);
-
-        if(attackResult !== Attacks.killed && attackResult !== Attacks.shot){
-            game.turn = game.turn === game.user1 ? game.user2 as User : game.user1 as User;
-        }
-
-        return [attackResult, this.getConnectionIdForUser(game.user1 as User), this.getConnectionIdForUser(game.user2 as User)];
+        return [attackRes, ...game.getUsersID()];
     }
+    public getGameTurn(gameId: number): number | null {
+        const game = this.Games.get(gameId) as Game;
+        return game.getTurn();
+    }
+
 }
 
 export default new GameManager();
-
-export class Field {
-
-    private ships: number[][] = [
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    ];
-
-    private initialData: ShipData;
-
-    constructor(ships: ShipData) {
-        this.initialData = ships;
-        ships.forEach(s => {
-            for (let i = 0; i < s.length; i++) {
-                //ПЕРВЫМ ИДЕТ X , но это столбец, поэтому он как бы Y
-                this.ships[s.position.y + (s.direction ? i : 0)][s.position.x + (!s.direction ? i : 0)] = Ships[s.type];
-            }
-        });
-    }
-
-    private checkNearCeils(l: number, x: number, y: number) {
-        for (let i = x, j = x; i < x + l - 1 && j > x - l + 1; j--) {
-            if ((this.ships[y][i] && this.ships[y][i] === l) || (this.ships[y][j] && this.ships[y][j] === l)) return true;
-        }
-        for (let i = y, j = y; i < y + l - 1 && j > y - l + 1; j--) {
-            if ((this.ships[i][x] && this.ships[i][x] === l) || (this.ships[j][x] && this.ships[j][x] === l)) return true;
-        }
-        return false;
-    }
-    public getInitialData(): ShipData {
-        return this.initialData
-    }
-    public checkAttack(x: number, y: number): Attacks {
-        const ceil = this.ships[y][x];
-        if (ceil === 0) return Attacks.miss;
-        if (ceil > 0 && ceil < 5 && this.checkNearCeils(ceil, x, y)) return Attacks.shot;
-        if (ceil > 0 && ceil < 5 && !this.checkNearCeils(ceil, x, y)) return Attacks.killed;
-
-        return this.ships[y][x]
-    }
-}

@@ -1,7 +1,7 @@
 import GameManager from "../db/gameManager";
 import { CommandTypes, Message } from "./wsTypes";
 import eventEmitter, { GAME } from './events';
-import { Attacks } from "db/dbTypes";
+import { Attacks } from "../db/dbTypes";
 
 export const cmdHandler = (message: Message, connectionId: number): any => {
     const cmd = message.type;
@@ -15,7 +15,6 @@ export const cmdHandler = (message: Message, connectionId: number): any => {
         id: 0
     };
     const responses: any[] = [];
-    // console.log(message.type);
 
     switch (message.type) {
         case CommandTypes.Registration: {
@@ -28,21 +27,21 @@ export const cmdHandler = (message: Message, connectionId: number): any => {
             }
             return dataToJSON(response)
         }
-
         case CommandTypes.UpdateRoom: {
             const rooms = GameManager.getAvailableRooms();
             const res: any[] = [];
+            const roomUsers = [];
 
             rooms.forEach(r => {
                 res.push({
-                    roomId: r.indexRoom,
+                    roomId: r.roomID,
                     roomUsers: [{
-                        name: r.user1?.name,
-                        index: r.user1?.index,
-                    }, {
-                        name: r.user2?.name,
-                        index: r.user2?.index,
-                    }]
+                        name: GameManager.getUserName(r.user1ID),
+                        index: r.user1ID,
+                    }, r.user2ID ? {
+                        name: GameManager.getUserName(r.user2ID),
+                        index: r.user2ID,
+                    } : '']
                 });
             });
 
@@ -74,31 +73,29 @@ export const cmdHandler = (message: Message, connectionId: number): any => {
             eventEmitter.emit(GAME.UPDATE_ROOMS);
 
             if (!room?.isAvailable) {
-                eventEmitter.emit(GAME.CREATE_GAME, room?.user1?.id, room?.user2?.id);
+                eventEmitter.emit(GAME.CREATE_GAME, room?.user1ID, room?.user2ID, room?.roomID);
             }
             break;
         }
         case CommandTypes.CreateGame: {
-            const game = GameManager.createGame(connectionId as number);
+            const gameId = GameManager.createGame(data.roomId as number);
 
             response.data = JSON.stringify({
-                idGame: game.id,
+                idGame: gameId,
                 idPlayer: connectionId
             });
             return JSON.stringify(response);
         }
         case CommandTypes.AddShips: {
-            const readyUsers: number[] = GameManager.addShips(data, connectionId);
-            // console.log(readyUsers);
+            const readyUsers: number[] = GameManager.addShips(data.gameId, connectionId, data.ships);
 
             if (readyUsers.length === 2) {
-                eventEmitter.emit(GAME.START_GAME, ...readyUsers);
+                eventEmitter.emit(GAME.START_GAME, ...readyUsers, data.gameId);
             }
             return JSON.stringify(response);
         }
         case CommandTypes.StartGame: {
             const usersShips = GameManager.getUsersShips(connectionId);
-            // console.log(usersShips);
 
             response.data = JSON.stringify({
                 ships: usersShips,
@@ -108,7 +105,7 @@ export const cmdHandler = (message: Message, connectionId: number): any => {
             return JSON.stringify(response);
         }
         case CommandTypes.Turn: {
-            const turn = GameManager.getGameTurn(data.id1, data.id2);
+            const turn = GameManager.getGameTurn(data.gameId);
 
             response.data = JSON.stringify({
                 currentPlayer: turn,
@@ -118,12 +115,20 @@ export const cmdHandler = (message: Message, connectionId: number): any => {
         }
         case CommandTypes.Attack: {
             const res = GameManager.attack(data.gameId, data.indexPlayer, data.x, data.y);
-            response.data = {
+            const game = GameManager.getGame(data.gameId);
+            const usersId = game?.getUsersID() as number[];
+            const secondPlayer = data.indexPlayer === usersId[0] ? usersId[1] : usersId[0];
+
+            response.data = JSON.stringify({
                 position: { x: data.x, y: data.y },
                 currentPlayer: data.indexPlayer,
                 status: res[0],
-            }
-            // eventEmitter.emit(GAME.SWITCH_TURN, res[1], res[2]);
+            });
+
+            if (res[0] === Attacks[3]) return;
+            eventEmitter.emit(GAME.ATTACK, ...usersId, JSON.stringify(response));
+            // eventEmitter.emit(GAME.SWITCH_TURN, res[1], res[2], data.gameId);
+
             return JSON.stringify(response);
         }
     }
