@@ -124,8 +124,6 @@ export class Field {
                 this.ships[s.position.y + (s.direction ? i : 0)][s.position.x + (!s.direction ? i : 0)] = Ships[s.type];
             }
         });
-        console.table(this.ships)
-
     }
 
     private checkNearCeils(l: number, x: number, y: number) {

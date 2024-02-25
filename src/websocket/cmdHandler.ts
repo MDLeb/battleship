@@ -16,8 +16,6 @@ export const cmdHandler = (message: Message, connectionId: number): any => {
         id: 0
     };
     const responses: any[] = [];
-    console.log(message);
-
 
     switch (message.type) {
         case CommandTypes.Registration: {
@@ -28,7 +26,8 @@ export const cmdHandler = (message: Message, connectionId: number): any => {
                 error: false,
                 errorText: ''
             }
-            return dataToJSON(response)
+            return dataToJSON(response);
+            break;
         }
         case CommandTypes.UpdateRoom: {
             const rooms = GameManager.getAvailableRooms();
@@ -50,6 +49,7 @@ export const cmdHandler = (message: Message, connectionId: number): any => {
 
             response.data = JSON.stringify(res);
             return JSON.stringify(response);
+            break;
         }
         case CommandTypes.UpdateWinners: {
             const winners = GameManager.updateWinners();
@@ -64,6 +64,7 @@ export const cmdHandler = (message: Message, connectionId: number): any => {
 
             response.data = JSON.stringify(res);
             return JSON.stringify(response);
+            break;
         }
         case CommandTypes.CreateRoom: {
             GameManager.createRoom(connectionId);
@@ -89,6 +90,7 @@ export const cmdHandler = (message: Message, connectionId: number): any => {
                 idPlayer: connectionId
             });
             return JSON.stringify(response);
+            break;
         }
         case CommandTypes.AddShips: {
             const readyUsers: number[] = GameManager.addShips(data.gameId, connectionId, data.ships);
@@ -97,6 +99,7 @@ export const cmdHandler = (message: Message, connectionId: number): any => {
                 eventEmitter.emit(GAME.START_GAME, ...readyUsers, data.gameId);
             }
             return JSON.stringify(response);
+            break;
         }
         case CommandTypes.StartGame: {
             const usersShips = GameManager.getUsersShips(connectionId);
@@ -107,13 +110,18 @@ export const cmdHandler = (message: Message, connectionId: number): any => {
             });
 
             return JSON.stringify(response);
+            break;
         }
         case CommandTypes.Turn: {
             const turn = GameManager.getGameTurn(data.gameId);
 
             //BOT
             if (turn === -1) {
-                
+                setTimeout(() => {
+                    console.log(connectionId);
+
+                    cmdHandler({ type: CommandTypes.RandomAttack, data: JSON.stringify({ "gameId": data.gameId, "indexPlayer": -1 }) as any } as Message, connectionId as number)
+                }, 1000)
             }
 
             response.data = JSON.stringify({
@@ -121,10 +129,12 @@ export const cmdHandler = (message: Message, connectionId: number): any => {
             });
 
             return JSON.stringify(response);
+            break;
         }
         case CommandTypes.Attack: {
             const game = GameManager.getGame(data.gameId);
-
+            console.log(message);
+            
             if (game?.turn !== data.indexPlayer) return;
             if (game?.isGameFinished()) return;
 
@@ -157,13 +167,16 @@ export const cmdHandler = (message: Message, connectionId: number): any => {
                     eventEmitter.emit(GAME.UPDATE_KILLED, ...usersId, JSON.stringify(response));
                 })
             }
+            break;
         }
         case CommandTypes.RandomAttack: {
             const game = GameManager.getGame(data.gameId);
 
-            if (game?.turn !== data.indexPlayer) return;
+            if (game?.turn !== data.indexPlayer && game?.turn !== -1) return;
             if (game?.isGameFinished()) return;
 
+            console.log('169', data.indexPlayer);
+            
             let attack = Attacks[3];
             let res: any[] = [];
             let randomX: number = 0, randomY: number = 0;
@@ -206,13 +219,17 @@ export const cmdHandler = (message: Message, connectionId: number): any => {
                 })
             }
             if (res[0] === Attacks[1] || res[0] === Attacks[2]) {
-                cmdHandler(message, connectionId);
+                setTimeout(() => {
+                    // cmdHandler(message, connectionId);
+                    console.log('RECURCIVE', data.indexPlayer, message);
+                    cmdHandler(message, data.indexPlayer);
+                }, 1000)
             };
+            break;
         }
         case CommandTypes.Finish: {
             const game = GameManager.getGame(data.gameId) as Game;
             if (!game) return;
-            console.log(game.isGameFinished());
 
             if (!game.isGameFinished()) return;
 
@@ -223,10 +240,10 @@ export const cmdHandler = (message: Message, connectionId: number): any => {
             });
 
             response.type = GAME.FINISH;
-            console.log(JSON.stringify(response));
 
             eventEmitter.emit(GAME.UPDATE_WINNERS);
             eventEmitter.emit(GAME.FINISH, ...usersId, JSON.stringify(response));
+            break;
         }
         case CommandTypes.SinglePlay: {
             const roomId = GameManager.createRoom(connectionId, true);

@@ -67,8 +67,6 @@ export const newWSConnection = () => {
         });
         eventEmitter.on(GAME.FINISH, (id1, id2, responseString) => {
             if (connectionId === id1 || connectionId === id2) {
-                console.log('EVENT');
-
                 w.send(responseString);
             }
         });

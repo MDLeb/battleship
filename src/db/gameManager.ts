@@ -101,7 +101,6 @@ class GameManager {
     }
     public addShips(gameId: number, connectionId: number, ships: ShipData): number[] {
         const game = this.Games.get(gameId) as Game;
-        console.log('104', gameId);
         
         const readyUsers = game.addShips(connectionId, ships);
         return readyUsers;
