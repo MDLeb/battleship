@@ -14,7 +14,8 @@ export enum CommandTypes {
     UpdateKilled = 'update_killed',
     RandomAttack = 'randomAttack',
     Turn = 'turn',
-    Finish = 'finish'
+    Finish = 'finish',
+    SinglePlay = 'single_play'
 }
 
 export type Message = {

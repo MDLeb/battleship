@@ -9,4 +9,6 @@ export enum GAME {
     SWITCH_TURN = 'switchTurn',
     ATTACK = 'attack',
     UPDATE_KILLED = 'updateKilled',
+    FINISH = 'finish',
+    BOT_ATTACK = 'bot_attack'
 }

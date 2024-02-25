@@ -2,6 +2,7 @@ import GameManager from "../db/gameManager";
 import { CommandTypes, Message } from "./wsTypes";
 import eventEmitter, { GAME } from './events';
 import { Attacks } from "../db/dbTypes";
+import { Game } from "db/Game";
 
 export const cmdHandler = (message: Message, connectionId: number): any => {
     const cmd = message.type;
@@ -15,6 +16,8 @@ export const cmdHandler = (message: Message, connectionId: number): any => {
         id: 0
     };
     const responses: any[] = [];
+    console.log(message);
+
 
     switch (message.type) {
         case CommandTypes.Registration: {
@@ -63,12 +66,13 @@ export const cmdHandler = (message: Message, connectionId: number): any => {
             return JSON.stringify(response);
         }
         case CommandTypes.CreateRoom: {
-            const roomIndex = GameManager.createRoom(connectionId);
+            GameManager.createRoom(connectionId);
             eventEmitter.emit(GAME.UPDATE_ROOMS)
             break;
         }
         case CommandTypes.AddUserToRoom: {
             const room = GameManager.addUserToRoom(data.indexRoom, connectionId);
+            if (connectionId === room?.user1ID) return;
 
             eventEmitter.emit(GAME.UPDATE_ROOMS);
 
@@ -107,6 +111,11 @@ export const cmdHandler = (message: Message, connectionId: number): any => {
         case CommandTypes.Turn: {
             const turn = GameManager.getGameTurn(data.gameId);
 
+            //BOT
+            if (turn === -1) {
+                
+            }
+
             response.data = JSON.stringify({
                 currentPlayer: turn,
             });
@@ -115,9 +124,9 @@ export const cmdHandler = (message: Message, connectionId: number): any => {
         }
         case CommandTypes.Attack: {
             const game = GameManager.getGame(data.gameId);
-            console.log(game?.turn !== data.indexPlayer);
 
             if (game?.turn !== data.indexPlayer) return;
+            if (game?.isGameFinished()) return;
 
             const res = GameManager.attack(data.gameId, data.indexPlayer, data.x, data.y);
             const usersId = game?.getUsersID() as number[];
@@ -131,6 +140,7 @@ export const cmdHandler = (message: Message, connectionId: number): any => {
             if (res[0] === Attacks[3]) return;
 
             eventEmitter.emit(GAME.ATTACK, ...usersId, JSON.stringify(response));
+
             if (res[0] === Attacks[0]) {
                 game?.switchTurn();
                 eventEmitter.emit(GAME.SWITCH_TURN, ...usersId, data.gameId);
@@ -138,7 +148,6 @@ export const cmdHandler = (message: Message, connectionId: number): any => {
             };
             if (res[1]) {
                 res[1].forEach((pos: any) => {
-                    // console.log(pos);
 
                     response.data = JSON.stringify({
                         position: { x: pos.y, y: pos.x },
@@ -148,6 +157,81 @@ export const cmdHandler = (message: Message, connectionId: number): any => {
                     eventEmitter.emit(GAME.UPDATE_KILLED, ...usersId, JSON.stringify(response));
                 })
             }
+        }
+        case CommandTypes.RandomAttack: {
+            const game = GameManager.getGame(data.gameId);
+
+            if (game?.turn !== data.indexPlayer) return;
+            if (game?.isGameFinished()) return;
+
+            let attack = Attacks[3];
+            let res: any[] = [];
+            let randomX: number = 0, randomY: number = 0;
+
+            while (attack === Attacks[3]) {
+                randomX = Math.floor(Math.random() * 10);
+                randomY = Math.floor(Math.random() * 10);
+
+                res = GameManager.attack(data.gameId, data.indexPlayer, randomX, randomY);
+                attack = res[0];
+            }
+            const usersId = game?.getUsersID() as number[];
+
+            if (res[0] === Attacks[3]) return;
+
+            response.type = CommandTypes.Attack;
+            response.data = JSON.stringify({
+                position: { x: randomX, y: randomY },
+                currentPlayer: data.indexPlayer,
+                status: res[0],
+            });
+
+            eventEmitter.emit(GAME.ATTACK, ...usersId, JSON.stringify(response));
+
+            if (res[0] === Attacks[0]) {
+                game?.switchTurn();
+                eventEmitter.emit(GAME.SWITCH_TURN, ...usersId, data.gameId);
+                return;
+            };
+
+            if (res[1]) {
+                res[1].forEach((pos: any) => {
+                    response.data = JSON.stringify({
+                        position: { x: pos.y, y: pos.x },
+                        currentPlayer: data.indexPlayer,
+                        status: pos.status,
+                    });
+                    eventEmitter.emit(GAME.UPDATE_KILLED, ...usersId, JSON.stringify(response));
+
+                })
+            }
+            if (res[0] === Attacks[1] || res[0] === Attacks[2]) {
+                cmdHandler(message, connectionId);
+            };
+        }
+        case CommandTypes.Finish: {
+            const game = GameManager.getGame(data.gameId) as Game;
+            if (!game) return;
+            console.log(game.isGameFinished());
+
+            if (!game.isGameFinished()) return;
+
+            const usersId = game?.getUsersID() as number[];
+            const winner = GameManager.finishGame(data.gameId)
+            response.data = JSON.stringify({
+                winPlayer: winner,
+            });
+
+            response.type = GAME.FINISH;
+            console.log(JSON.stringify(response));
+
+            eventEmitter.emit(GAME.UPDATE_WINNERS);
+            eventEmitter.emit(GAME.FINISH, ...usersId, JSON.stringify(response));
+        }
+        case CommandTypes.SinglePlay: {
+            const roomId = GameManager.createRoom(connectionId, true);
+            eventEmitter.emit(GAME.CREATE_GAME, connectionId, -1, roomId);
+            break;
         }
     }
 }

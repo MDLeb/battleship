@@ -24,6 +24,7 @@ export class Room implements IRoom {
     }
 
     public addUser(userID: number) {
+
         if (this.user1ID !== 0 && this.user2ID !== 0) return;
         if (this.user1ID > 0) {
             this.user2ID = userID;
@@ -33,6 +34,12 @@ export class Room implements IRoom {
         if (this.user1ID > 0 && this.user2ID > 0) {
             this.isAvailable = false;
         };
+        return this;
+    }
+    public addBot() {
+
+        this.user2ID = -1;
+        this.isAvailable = false;
         return this;
     }
     public createGame() {

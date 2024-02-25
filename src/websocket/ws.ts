@@ -7,7 +7,7 @@ import eventEmitter, { GAME } from './events';
 
 
 export const newWSConnection = () => {
-    const ws = new WebSocketServer({ port: 3000 });
+    const ws = new WebSocketServer({ port: 3000, host: 'localhost' });
 
     ws.on('connection', function connection(w) {
 
@@ -21,7 +21,7 @@ export const newWSConnection = () => {
                 if (msg.type === CommandTypes.Registration) {
                     w.send(cmdHandler(msg as Message, connectionId as number));
                     w.send(cmdHandler({ type: CommandTypes.UpdateRoom, data: '' } as Message, connectionId as number));
-                    w.send(cmdHandler({ type: CommandTypes.UpdateWinners, data: '' } as Message, connectionId as number));
+                    eventEmitter.emit(GAME.UPDATE_WINNERS);
                 } else {
                     cmdHandler(msg as Message, connectionId as number)
                 }
@@ -59,12 +59,19 @@ export const newWSConnection = () => {
                 w.send(responseString);
             }
         });
+    
         eventEmitter.on(GAME.UPDATE_KILLED, (id1, id2, responseString) => {
             if (connectionId === id1 || connectionId === id2) {
                 w.send(responseString);
             }
         });
+        eventEmitter.on(GAME.FINISH, (id1, id2, responseString) => {
+            if (connectionId === id1 || connectionId === id2) {
+                console.log('EVENT');
 
+                w.send(responseString);
+            }
+        });
         w.send(JSON.stringify({ "type": "ws open" }));
     });
     return ws;

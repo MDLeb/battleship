@@ -1,3 +1,4 @@
+import { RandomField } from "./RandomField";
 import { Attacks, ShipData, Ships, User } from "./dbTypes";
 
 interface IGame {
@@ -22,6 +23,13 @@ export class Game implements IGame {
         this.user1ID = user1ID;
         this.user2ID = user2ID;
         this.turn = user2ID;
+
+        //BOT FIELD
+        if (user2ID === -1) {
+
+            const botFieldData = new RandomField().getShipsData();
+            this.user2Field = new Field(botFieldData);
+        }
     }
 
     public switchTurn() {
@@ -80,7 +88,14 @@ export class Game implements IGame {
     public getUsersID() {
         return [this.user1ID, this.user2ID];
     }
-
+    public isGameFinished(): boolean {
+        return !((this.user1Field?.isAlive() ?? false) && (this.user2Field?.isAlive() ?? false))
+    }
+    public getWinner(): number {
+        if (!this.user1Field?.isAlive()) return this.user2ID;
+        if (!this.user2Field?.isAlive()) return this.user1ID;
+        return 0;
+    }
 }
 
 export class Field {
@@ -109,6 +124,8 @@ export class Field {
                 this.ships[s.position.y + (s.direction ? i : 0)][s.position.x + (!s.direction ? i : 0)] = Ships[s.type];
             }
         });
+        console.table(this.ships)
+
     }
 
     private checkNearCeils(l: number, x: number, y: number) {
@@ -169,6 +186,9 @@ export class Field {
     public getInitialData(): ShipData {
         return this.initialData
     }
+    public isAlive(): boolean {
+        return Array.isArray(this.ships.find((row: number[]) => row.find((cell: number) => cell > 0))) ?? false;
+    }
     public checkAttack(x: number, y: number): string {
         const ceil = this.ships[y][x];
 
@@ -180,10 +200,6 @@ export class Field {
 
         if (ceil > 0 && ceil < 5 && isKilled.value) {
             this.ships[y][x] = ceil * -1;
-
-            // if () {
-
-            console.log(...isKilled.needToUpdate.map(i => { return { x: i.x, y: i.y } }));
 
             const emptyNeedToUpdate = this.getEmptyAfterKilled([{ x, y }, ...isKilled.needToUpdate.map(i => { return { x: i.y, y: i.x } })]);
             this.needUpdateKilled = [...isKilled.needToUpdate, ...emptyNeedToUpdate];

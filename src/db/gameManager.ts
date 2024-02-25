@@ -46,9 +46,8 @@ class GameManager {
 
         return this.Users;
     }
-    public createRoom(connectionId: number): number {
+    public createRoom(connectionId: number, single: boolean = false): number {
         const user = this.connections.get(connectionId) as User;
-        //FIXME если у юзера уже создана комната надо ничего не делать
         if (user.room > -1) {
             return -1;
         }
@@ -56,13 +55,24 @@ class GameManager {
         user.room = room.roomID;
         this.Rooms.set(room.roomID, room);
 
+        if(single){
+            room.addBot();
+        }
         return room.roomID;
     }
     public addUserToRoom(indexRoom: number, connectionId: number): Room | null {
         if (!this.Rooms.get(indexRoom)) { return null; }
 
         const user = this.connections.get(connectionId);
+        if (indexRoom === user.room) { return null; }
+
         const room = this.Rooms.get(indexRoom);
+
+        if (user.room > 0) {
+            this.Rooms.delete(user.room)
+            user.room = -1;
+        }
+
         room?.addUser(connectionId);
         user.room = indexRoom;
         return room ?? null;
@@ -91,6 +101,8 @@ class GameManager {
     }
     public addShips(gameId: number, connectionId: number, ships: ShipData): number[] {
         const game = this.Games.get(gameId) as Game;
+        console.log('104', gameId);
+        
         const readyUsers = game.addShips(connectionId, ships);
         return readyUsers;
     }
@@ -110,6 +122,29 @@ class GameManager {
     public getGameTurn(gameId: number): number | null {
         const game = this.Games.get(gameId) as Game;
         return game.getTurn();
+    }
+    public finishGame(gameId: number) {
+        const game = this.Games.get(gameId) as Game;
+
+        if (!game) return 0;
+
+        const players = game.getUsersID();
+        const winner = game.getWinner();
+        if (!winner) return;
+        const user = this.connections.get(winner);
+
+        user.wins += 1;
+        const roomId = user.room;
+
+        players.forEach(id => {
+            delete this.connections.get(id).game;
+            this.connections.get(id).room = -1;
+        })
+
+        this.Games.delete(gameId);
+        this.Games.delete(roomId);
+
+        return winner;
     }
 
 }
