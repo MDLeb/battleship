@@ -1,7 +1,7 @@
 import GameManager from "../db/gameManager";
 import { CommandTypes, Message } from "./wsTypes";
 import eventEmitter, { GAME } from './events';
-import { Attacks } from "../db/dbTypes";
+import { Attacks, Err } from "../db/dbTypes";
 import { Game } from "db/Game";
 
 export const cmdHandler = (message: Message, connectionId: number): any => {
@@ -29,14 +29,12 @@ export const cmdHandler = (message: Message, connectionId: number): any => {
                 });
                 return JSON.stringify(response);
 
-            } catch (error) {
-                // console.log(error);
-
+            } catch (error: any) {
                 response.data = JSON.stringify({
                     name: '',
                     index: '',
                     error: true,
-                    errorText: 'user is already online'
+                    errorText: error.message
                 })
                 return JSON.stringify(response);
             }

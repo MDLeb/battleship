@@ -27,6 +27,9 @@ class GameManager {
         let userExists, prevId;
 
         for (let [key, value] of this.connections) {
+            if (value.name === userName && value.password !== password) {
+                throw new Error(`Wrong password for user ${userName}`)
+            }
             if (value.name === userName && value.password === password) {
                 userExists = value;
                 prevId = key;
@@ -35,7 +38,7 @@ class GameManager {
 
         if (userExists && prevId) {
             if (userExists.isConnected) {
-                throw new Error('user is already online')
+                throw new Error(`User ${userExists.name} is already online`)
             } else {
 
                 this.connections.delete(prevId);
