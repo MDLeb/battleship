@@ -184,7 +184,7 @@ export const cmdHandler = (message: Message, connectionId: number): any => {
         case CommandTypes.RandomAttack: {
             const game = GameManager.getGame(data.gameId);
 
-            if (game?.turn !== data.indexPlayer && game?.turn !== -1) return;
+            if (game?.turn !== data.indexPlayer) return;
             if (game?.isGameFinished()) return;
 
             let attack = Attacks[3];
@@ -197,6 +197,7 @@ export const cmdHandler = (message: Message, connectionId: number): any => {
 
                 res = GameManager.attack(data.gameId, data.indexPlayer, randomX, randomY);
                 attack = res[0];
+               
             }
             const usersId = game?.getUsersID() as number[];
 

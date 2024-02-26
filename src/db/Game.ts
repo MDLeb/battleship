@@ -26,12 +26,11 @@ export class Game implements IGame {
 
         //BOT FIELD
         if (user2ID === -1) {
-
             const botFieldData = new RandomField().getShipsData();
             this.user2Field = new Field(botFieldData);
         }
     }
-
+    
     public switchTurn() {
         if (this.turn === this.user2ID) {
             this.turn = this.user1ID
@@ -94,7 +93,7 @@ export class Game implements IGame {
     public getWinner(): number {
 
         console.log();
-        
+
         if (!this.user1Field?.isAlive()) return this.user2ID;
         if (!this.user2Field?.isAlive()) return this.user1ID;
         return 0;
