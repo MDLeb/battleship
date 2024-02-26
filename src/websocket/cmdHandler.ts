@@ -257,6 +257,7 @@ export const cmdHandler = (message: Message, connectionId: number): any => {
         }
         case CommandTypes.SinglePlay: {
             const roomId = GameManager.createRoom(connectionId, true);
+            eventEmitter.emit(GAME.UPDATE_ROOMS);
             eventEmitter.emit(GAME.CREATE_GAME, connectionId, -1, roomId);
             break;
         }

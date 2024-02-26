@@ -76,7 +76,13 @@ class GameManager {
     public createRoom(connectionId: number, single: boolean = false): number {
         const user = this.connections.get(connectionId) as User;
         if (user.room > -1) {
-            return -1;
+            if (!single) {
+                return -1;
+            } else {
+
+                this.Rooms.delete(user.room);
+                user.room = -1;
+            }
         }
         const room = new Room(connectionId);
         user.room = room.roomID;
@@ -181,8 +187,11 @@ class GameManager {
         const user1ID = room.user1ID;
         const user2ID = room.user2ID;
         const winnerId = (user1ID === connectionId ? user2ID : user1ID);
-        const winner = this.connections.get(winnerId);
-        winner.wins += 1;
+
+        if (winnerId !== -1) {
+            const winner = this.connections.get(winnerId);
+            winner.wins += 1;
+        }
 
         [user1ID, user2ID].forEach(id => {
             if (id !== -1) {
