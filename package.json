@@ -1,10 +1,11 @@
 {
     "name": "battleship",
     "version": "1.0.0",
-    "description": "Template for the WebSocket remote control task",
+    "description": "Battleship",
     "main": "index.ts",
     "scripts": {
-        "start:dev": "nodemon ./index.ts"
+        "start:dev": "nodemon ./index.ts",
+        "start:prod": "tsc && node dist/index.js"
     },
     "author": "MDLeb",
     "keywords": [],
