@@ -14,6 +14,10 @@ export const newWSConnection = () => {
         const connectionId = GameManager.getId();
         w.on('error', console.error);
 
+        w.on('close', () => {
+            GameManager.disconnectUser(connectionId as number);
+        });
+
         w.on('message', function (message) {
             try {
                 const msg = JSON.parse(message.toString());

@@ -1,7 +1,7 @@
 import { Game, Field } from "./Game";
 import { Room } from "./Room";
 
-import { Attacks, ShipData, Ships, User } from "./dbTypes";
+import { Attacks, Err, ShipData, Ships, User } from "./dbTypes";
 
 class GameManager {
     private Users: User[] = [];
@@ -24,17 +24,44 @@ class GameManager {
         return user.name;
     }
     public addUser(userName: string, password: string, id: number): User {
-        const newUser = {
-            name: userName,
-            password: password,
-            index: this.Users.length as number,
-            room: -1,
-            wins: 0,
-            id: id
+        let userExists, prevId;
+
+        for (let [key, value] of this.connections) {
+            if (value.name === userName && value.password === password) {
+                userExists = value;
+                prevId = key;
+            }
         }
-        this.Users.push(newUser);
-        this.connections.set(id, newUser);
-        return newUser;
+
+        if (userExists && prevId) {
+            if (userExists.isConnected) {
+                throw new Error('user is already online')
+            } else {
+
+                this.connections.delete(prevId);
+                userExists.id = id;
+                this.connections.set(id, userExists);
+
+                return userExists;
+            }
+        } else {
+            const newUser = {
+                name: userName,
+                password: password,
+                index: this.Users.length as number,
+                room: -1,
+                wins: 0,
+                id: id,
+                isConnected: true
+            }
+            this.Users.push(newUser);
+            this.connections.set(id, newUser);
+            return newUser;
+        }
+    }
+    public disconnectUser(connectionId: number) {
+        const user = this.connections.get(connectionId);
+        user.isConnected = false;
     }
     public getRoom(roomId: number): Room | null {
         return this.Rooms.get(roomId) ?? null;
@@ -43,7 +70,6 @@ class GameManager {
         return this.Games.get(gameId) ?? null;
     }
     public updateWinners(): User[] {
-
         return this.Users;
     }
     public createRoom(connectionId: number, single: boolean = false): number {
@@ -55,7 +81,7 @@ class GameManager {
         user.room = room.roomID;
         this.Rooms.set(room.roomID, room);
 
-        if(single){
+        if (single) {
             room.addBot();
         }
         return room.roomID;
@@ -101,7 +127,7 @@ class GameManager {
     }
     public addShips(gameId: number, connectionId: number, ships: ShipData): number[] {
         const game = this.Games.get(gameId) as Game;
-        
+
         const readyUsers = game.addShips(connectionId, ships);
         return readyUsers;
     }
@@ -136,8 +162,10 @@ class GameManager {
         const roomId = user.room;
 
         players.forEach(id => {
-            delete this.connections.get(id).game;
-            this.connections.get(id).room = -1;
+            if (id !== -1) {
+                delete this.connections.get(id).game;
+                this.connections.get(id).room = -1;
+            }
         })
 
         this.Games.delete(gameId);

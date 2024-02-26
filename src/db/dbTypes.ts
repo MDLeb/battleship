@@ -1,5 +1,3 @@
-// import { Field } from "./gameManager";
-
 import { Game } from "./Game";
 
 export type User = {
@@ -9,26 +7,13 @@ export type User = {
     id?: number
     room: number;
     game?: Game;
-    wins: number
+    wins: number;
+    isConnected: boolean
 }
-// export type Game = {
-//     id: number,
-//     user1: User | null,
-//     user2: User | null,
-//     user1Field?: Field | null,
-//     user2Field?: Field | null,
-//     turn: User
-// }
-// export type Room = {
-//     indexRoom: number,
-//     user1: User | null,
-//     user2: User | null,
-//     isAvailable: boolean,
-//     game: Game | null,
-
-// }
-
-// export type GameField = number[][];
+export type Err = {
+    error: boolean,
+    errorMessage: string
+}
 export enum Ships {
     "small" = 1,
     "medium" = 2,

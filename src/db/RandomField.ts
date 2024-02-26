@@ -52,7 +52,7 @@ export class RandomField {
         for (const count of shipCounts) {
             for (let i = 0; i < count; i++) {
                 const type = this.getShipType(count);
-                const direction = false;
+                const direction = Math.random() > 0.5;
 
                 let length = 0;
                 switch (type) {
@@ -87,6 +87,7 @@ export class RandomField {
                 }
             }
         }
+        console.table(this.boardMatrix)
     }
 
     private getShipType(length: number): "small" | "medium" | "large" | "huge" {

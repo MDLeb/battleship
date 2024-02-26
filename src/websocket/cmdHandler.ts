@@ -19,14 +19,27 @@ export const cmdHandler = (message: Message, connectionId: number): any => {
 
     switch (message.type) {
         case CommandTypes.Registration: {
-            const user = GameManager.addUser(data.name, data.password, connectionId);
-            response.data = {
-                name: user.name,
-                index: user.index,
-                error: false,
-                errorText: ''
+            try {
+                const user = GameManager.addUser(data.name, data.password, connectionId);
+                response.data = JSON.stringify({
+                    name: user.name,
+                    index: user.index,
+                    error: false,
+                    errorText: ''
+                });
+                return JSON.stringify(response);
+
+            } catch(error){
+                // console.log(error);
+                
+                response.data = JSON.stringify({
+                    name: '',
+                    index: '',
+                    error: true,
+                    errorText: 'user is already online'
+                })
+                return  JSON.stringify(response);
             }
-            return dataToJSON(response);
             break;
         }
         case CommandTypes.UpdateRoom: {
@@ -118,8 +131,6 @@ export const cmdHandler = (message: Message, connectionId: number): any => {
             //BOT
             if (turn === -1) {
                 setTimeout(() => {
-                    console.log(connectionId);
-
                     cmdHandler({ type: CommandTypes.RandomAttack, data: JSON.stringify({ "gameId": data.gameId, "indexPlayer": -1 }) as any } as Message, connectionId as number)
                 }, 1000)
             }
@@ -133,10 +144,9 @@ export const cmdHandler = (message: Message, connectionId: number): any => {
         }
         case CommandTypes.Attack: {
             const game = GameManager.getGame(data.gameId);
-            console.log(message);
-            
+
+            if (!game || game?.isGameFinished()) return;
             if (game?.turn !== data.indexPlayer) return;
-            if (game?.isGameFinished()) return;
 
             const res = GameManager.attack(data.gameId, data.indexPlayer, data.x, data.y);
             const usersId = game?.getUsersID() as number[];
@@ -150,6 +160,11 @@ export const cmdHandler = (message: Message, connectionId: number): any => {
             if (res[0] === Attacks[3]) return;
 
             eventEmitter.emit(GAME.ATTACK, ...usersId, JSON.stringify(response));
+            if (game?.isGameFinished()) {
+                setTimeout(() => {
+                    cmdHandler({ type: CommandTypes.Finish, data: JSON.stringify({ "gameId": data.gameId }) as any } as Message, connectionId as number)
+                }, 1000)
+            }
 
             if (res[0] === Attacks[0]) {
                 game?.switchTurn();
@@ -158,7 +173,6 @@ export const cmdHandler = (message: Message, connectionId: number): any => {
             };
             if (res[1]) {
                 res[1].forEach((pos: any) => {
-
                     response.data = JSON.stringify({
                         position: { x: pos.y, y: pos.x },
                         currentPlayer: data.indexPlayer,
@@ -175,8 +189,6 @@ export const cmdHandler = (message: Message, connectionId: number): any => {
             if (game?.turn !== data.indexPlayer && game?.turn !== -1) return;
             if (game?.isGameFinished()) return;
 
-            console.log('169', data.indexPlayer);
-            
             let attack = Attacks[3];
             let res: any[] = [];
             let randomX: number = 0, randomY: number = 0;
@@ -220,8 +232,6 @@ export const cmdHandler = (message: Message, connectionId: number): any => {
             }
             if (res[0] === Attacks[1] || res[0] === Attacks[2]) {
                 setTimeout(() => {
-                    // cmdHandler(message, connectionId);
-                    console.log('RECURCIVE', data.indexPlayer, message);
                     cmdHandler(message, data.indexPlayer);
                 }, 1000)
             };
@@ -253,13 +263,13 @@ export const cmdHandler = (message: Message, connectionId: number): any => {
     }
 }
 
-const dataToJSON = (data: any): string => {
+// const dataToJSON = (data: any): string => {
 
-    for (let key in data) {
-        if (typeof data[key] === 'object') {
-            data[key] = dataToJSON(data[key]);
-        }
-    }
+//     for (let key in data) {
+//         if (typeof data[key] === 'object') {
+//             data[key] = dataToJSON(data[key]);
+//         }
+//     }
 
-    return JSON.stringify(data);
-};
+//     return JSON.stringify(data);
+// };
