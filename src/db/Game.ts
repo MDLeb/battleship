@@ -92,6 +92,9 @@ export class Game implements IGame {
         return !((this.user1Field?.isAlive() ?? false) && (this.user2Field?.isAlive() ?? false))
     }
     public getWinner(): number {
+
+        console.log();
+        
         if (!this.user1Field?.isAlive()) return this.user2ID;
         if (!this.user2Field?.isAlive()) return this.user1ID;
         return 0;
@@ -183,6 +186,12 @@ export class Field {
     }
     public getInitialData(): ShipData {
         return this.initialData
+    }
+    public emitDeath(): void {
+        this.ships.forEach((row, i) => row.forEach((cell, j) => {
+            if (cell > 0) this.ships[i][j] *= -1;
+        }));
+        console.table(this.ships)
     }
     public isAlive(): boolean {
         return Array.isArray(this.ships.find((row: number[]) => row.find((cell: number) => cell > 0))) ?? false;

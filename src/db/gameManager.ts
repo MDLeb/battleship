@@ -62,6 +62,7 @@ class GameManager {
     public disconnectUser(connectionId: number) {
         const user = this.connections.get(connectionId);
         user.isConnected = false;
+        return user;
     }
     public getRoom(roomId: number): Room | null {
         return this.Rooms.get(roomId) ?? null;
@@ -70,7 +71,7 @@ class GameManager {
         return this.Games.get(gameId) ?? null;
     }
     public updateWinners(): User[] {
-        return this.Users;
+        return this.Users.sort((a, b) => b.wins - a.wins);
     }
     public createRoom(connectionId: number, single: boolean = false): number {
         const user = this.connections.get(connectionId) as User;
@@ -169,10 +170,33 @@ class GameManager {
         })
 
         this.Games.delete(gameId);
-        this.Games.delete(roomId);
+        this.Rooms.delete(roomId);
 
         return winner;
     }
+    public gameFinishOnDisconnection(connectionId: number): number {
+        const user = this.connections.get(connectionId);
+        const room = this.Rooms.get(user.room) as Room;
+        const game = user.game;
+        const user1ID = room.user1ID;
+        const user2ID = room.user2ID;
+        const winnerId = (user1ID === connectionId ? user2ID : user1ID);
+        const winner = this.connections.get(winnerId);
+        winner.wins += 1;
+
+        [user1ID, user2ID].forEach(id => {
+            if (id !== -1) {
+                delete this.connections.get(id).game;
+                this.connections.get(id).room = -1;
+            }
+        })
+
+        if (game) this.Games.delete(game.id);
+        this.Rooms.delete(room.roomID);
+        return winnerId;
+    }
+
+
 
 }
 

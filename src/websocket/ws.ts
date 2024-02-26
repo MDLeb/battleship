@@ -15,7 +15,7 @@ export const newWSConnection = () => {
         w.on('error', console.error);
 
         w.on('close', () => {
-            GameManager.disconnectUser(connectionId as number);
+            cmdHandler({ type: CommandTypes.Disconnection, data: '' } as Message, connectionId as number)
         });
 
         w.on('message', function (message) {

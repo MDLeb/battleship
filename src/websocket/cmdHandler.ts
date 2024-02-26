@@ -29,16 +29,16 @@ export const cmdHandler = (message: Message, connectionId: number): any => {
                 });
                 return JSON.stringify(response);
 
-            } catch(error){
+            } catch (error) {
                 // console.log(error);
-                
+
                 response.data = JSON.stringify({
                     name: '',
                     index: '',
                     error: true,
                     errorText: 'user is already online'
                 })
-                return  JSON.stringify(response);
+                return JSON.stringify(response);
             }
             break;
         }
@@ -260,16 +260,27 @@ export const cmdHandler = (message: Message, connectionId: number): any => {
             eventEmitter.emit(GAME.CREATE_GAME, connectionId, -1, roomId);
             break;
         }
+        case CommandTypes.Disconnection: {
+            const user = GameManager.disconnectUser(connectionId as number);
+            const roomId = user.room;
+
+            if (roomId > 0) {
+                const room = GameManager.getRoom(roomId);
+                const game = room?.game;
+
+                const winnerId = GameManager.gameFinishOnDisconnection(connectionId as number);
+                response.data = JSON.stringify({
+                    winPlayer: winnerId,
+                });
+
+                response.type = GAME.FINISH;
+
+                eventEmitter.emit(GAME.UPDATE_WINNERS);
+                eventEmitter.emit(GAME.FINISH, winnerId, connectionId, JSON.stringify(response));
+            }
+
+
+            break;
+        }
     }
 }
-
-// const dataToJSON = (data: any): string => {
-
-//     for (let key in data) {
-//         if (typeof data[key] === 'object') {
-//             data[key] = dataToJSON(data[key]);
-//         }
-//     }
-
-//     return JSON.stringify(data);
-// };
